@@ -1,0 +1,193 @@
+version: '3.9'
+
+services:
+  # ===========================================
+  # MESSAGE BROKER
+  # ===========================================
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: neuraltrade-rabbitmq
+    hostname: rabbitmq
+    ports:
+      - "5672:5672"   # AMQP
+      - "15672:15672" # Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: neuraltrade
+      RABBITMQ_DEFAULT_PASS: neuraltrade_rmq_2026
+      RABBITMQ_DEFAULT_VHOST: /
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - neuraltrade-net
+
+  # ===========================================
+  # TIME-SERIES DATABASE (Market Data)
+  # ===========================================
+  influxdb:
+    image: influxdb:2.7-alpine
+    container_name: neuraltrade-influxdb
+    ports:
+      - "8086:8086"
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: neuraltrade
+      DOCKER_INFLUXDB_INIT_PASSWORD: neuraltrade_influx_2026
+      DOCKER_INFLUXDB_INIT_ORG: neuraltrade
+      DOCKER_INFLUXDB_INIT_BUCKET: market_data
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: neuraltrade-influx-token-change-me
+    volumes:
+      - influxdb_data:/var/lib/influxdb2
+      - influxdb_config:/etc/influxdb2
+    healthcheck:
+      test: ["CMD", "influx", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - neuraltrade-net
+
+  # ===========================================
+  # NOSQL DATABASE (Profiles, API Keys)
+  # ===========================================
+  mongodb:
+    image: mongo:7.0
+    container_name: neuraltrade-mongodb
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: neuraltrade_secure_2026
+      MONGO_INITDB_DATABASE: neuraltrade
+    volumes:
+      - mongodb_data:/data/db
+      - ./infrastructure/scripts/mongo-init.js:/docker-entrypoint-initdb.d/init.js:ro
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - neuraltrade-net
+
+  # ===========================================
+  # CACHE & RATE LIMITING
+  # ===========================================
+  redis:
+    image: redis:7.2-alpine
+    container_name: neuraltrade-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - neuraltrade-net
+
+  # ===========================================
+  # INGESTION SERVICE (Node.js/TypeScript)
+  # ===========================================
+  ingestion:
+    build:
+      context: ./services/ingestion
+      dockerfile: Dockerfile
+    container_name: neuraltrade-ingestion
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: development
+      RABBITMQ_URL: amqp://neuraltrade:neuraltrade_rmq_2026@rabbitmq:5672
+      INFLUXDB_URL: http://influxdb:8086
+      INFLUXDB_TOKEN: neuraltrade-influx-token-change-me
+      INFLUXDB_ORG: neuraltrade
+      INFLUXDB_BUCKET: market_data
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      influxdb:
+        condition: service_healthy
+    networks:
+      - neuraltrade-net
+    restart: unless-stopped
+
+  # ===========================================
+  # ML ENGINE (Python/FastAPI)
+  # ===========================================
+  ml-engine:
+    build:
+      context: ./services/ml-engine
+      dockerfile: Dockerfile
+    container_name: neuraltrade-ml-engine
+    ports:
+      - "8000:8000"
+    environment:
+      RABBITMQ_URL: amqp://neuraltrade:neuraltrade_rmq_2026@rabbitmq:5672
+      MONGODB_URI: mongodb://admin:neuraltrade_secure_2026@mongodb:27017/neuraltrade?authSource=admin
+      ML_CONFIDENCE_THRESHOLD: "0.85"
+    volumes:
+      - ./services/ml-engine/models:/app/models:ro
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+    networks:
+      - neuraltrade-net
+    restart: unless-stopped
+
+  # ===========================================
+  # API GATEWAY
+  # ===========================================
+  api-gateway:
+    build:
+      context: ./services/api-gateway
+      dockerfile: Dockerfile
+    container_name: neuraltrade-api-gateway
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+      MONGODB_URI: mongodb://admin:neuraltrade_secure_2026@mongodb:27017/neuraltrade?authSource=admin
+      REDIS_URL: redis://redis:6379
+      RABBITMQ_URL: amqp://neuraltrade:neuraltrade_rmq_2026@rabbitmq:5672
+      JWT_SECRET: your-super-secret-jwt-key-change-in-production
+      INGESTION_URL: http://ingestion:3001
+      ML_ENGINE_URL: http://ml-engine:8000
+    depends_on:
+      - mongodb
+      - redis
+      - rabbitmq
+      - ingestion
+      - ml-engine
+    networks:
+      - neuraltrade-net
+    restart: unless-stopped
+
+# ===========================================
+# NETWORKS
+# ===========================================
+networks:
+  neuraltrade-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+# ===========================================
+# VOLUMES (Persistent Data)
+# ===========================================
+volumes:
+  rabbitmq_data:
+  influxdb_data:
+  influxdb_config:
+  mongodb_data:
+  redis_data:
