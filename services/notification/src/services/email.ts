@@ -187,23 +187,35 @@ export async function sendVerificationEmail(
     }
 
     try {
-        const verifyUrl = `https://app.neuraltrade.io/verify-email?token=${verificationToken}`;
+        const verifyUrl = `${env.FRONTEND_URL}/auth/verify-email?token=${verificationToken}`;
 
         await transporter.sendMail({
             from: env.EMAIL_FROM,
             to: email,
-            subject: 'Verify your NeuralTrade email',
-            text: `Click this link to verify your email: ${verifyUrl}`,
+            subject: '🔐 Verify your NeuralTrade email',
+            text: `Welcome to NeuralTrade! Click this link to verify your email: ${verifyUrl}\n\nThis link expires in 24 hours.`,
             html: `
-                <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-                    <h1 style="color: #06b6d4;">Verify Your Email</h1>
-                    <p>Click the button below to verify your email address:</p>
-                    <a href="${verifyUrl}" style="display: inline-block; padding: 12px 24px; background: linear-gradient(135deg, #06b6d4 0%, #8b5cf6 100%); color: white; text-decoration: none; border-radius: 8px;">Verify Email</a>
-                    <p style="color: #666; margin-top: 20px; font-size: 12px;">If you didn't request this, please ignore this email.</p>
+                <div style="font-family: 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); padding: 40px; border-radius: 16px;">
+                    <div style="text-align: center; margin-bottom: 32px;">
+                        <div style="font-size: 40px; margin-bottom: 8px;">🧠</div>
+                        <h1 style="margin: 0; font-size: 28px; color: #06b6d4;">NeuralTrade</h1>
+                        <p style="margin: 8px 0 0; color: #94a3b8; font-size: 14px;">AI-Powered Algorithmic Trading</p>
+                    </div>
+                    <h2 style="color: #ffffff; font-size: 22px; margin-bottom: 16px;">Verify Your Email Address</h2>
+                    <p style="color: #cbd5e1; line-height: 1.6; margin-bottom: 24px;">Welcome to NeuralTrade! Click the button below to verify your email and start trading with AI-powered signals.</p>
+                    <div style="text-align: center; margin: 32px 0;">
+                        <a href="${verifyUrl}" style="display: inline-block; padding: 16px 48px; background: linear-gradient(135deg, #06b6d4 0%, #8b5cf6 100%); color: white; text-decoration: none; border-radius: 8px; font-weight: 600; box-shadow: 0 4px 15px rgba(6, 182, 212, 0.4);">Verify Email Address</a>
+                    </div>
+                    <p style="color: #94a3b8; font-size: 13px; margin-top: 24px;">If the button doesn't work, copy this URL: <a href="${verifyUrl}" style="color: #06b6d4;">${verifyUrl}</a></p>
+                    <div style="margin-top: 24px; padding: 12px; background: rgba(251, 191, 36, 0.1); border-left: 4px solid #fbbf24; border-radius: 4px;">
+                        <p style="margin: 0; color: #fbbf24; font-size: 13px;">⏰ This link expires in 24 hours.</p>
+                    </div>
+                    <p style="color: #64748b; font-size: 12px; margin-top: 24px;">If you didn't create an account, please ignore this email.</p>
                 </div>
             `,
         });
 
+        log.info({ to: email }, 'Verification email sent');
         return true;
     } catch (error) {
         log.error({ error, email }, 'Failed to send verification email');
@@ -224,27 +236,39 @@ export async function sendPasswordResetEmail(
     }
 
     try {
-        const resetUrl = `https://app.neuraltrade.io/reset-password?token=${resetToken}`;
+        const resetUrl = `${env.FRONTEND_URL}/auth/reset-password?token=${resetToken}`;
 
         await transporter.sendMail({
             from: env.EMAIL_FROM,
             to: email,
-            subject: 'Reset your NeuralTrade password',
-            text: `Click this link to reset your password: ${resetUrl}. This link expires in 1 hour.`,
+            subject: '🔑 Reset your NeuralTrade password',
+            text: `Click this link to reset your password: ${resetUrl}\n\nThis link expires in 1 hour. If you didn't request this, please ignore this email.`,
             html: `
-                <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-                    <h1 style="color: #06b6d4;">Reset Your Password</h1>
-                    <p>Click the button below to reset your password:</p>
-                    <a href="${resetUrl}" style="display: inline-block; padding: 12px 24px; background: linear-gradient(135deg, #06b6d4 0%, #8b5cf6 100%); color: white; text-decoration: none; border-radius: 8px;">Reset Password</a>
-                    <p style="color: #f87171; margin-top: 20px;">This link expires in 1 hour.</p>
-                    <p style="color: #666; font-size: 12px;">If you didn't request this, please ignore this email.</p>
+                <div style="font-family: 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); padding: 40px; border-radius: 16px;">
+                    <div style="text-align: center; margin-bottom: 32px;">
+                        <div style="font-size: 40px; margin-bottom: 8px;">🧠</div>
+                        <h1 style="margin: 0; font-size: 28px; color: #06b6d4;">NeuralTrade</h1>
+                        <p style="margin: 8px 0 0; color: #94a3b8; font-size: 14px;">AI-Powered Algorithmic Trading</p>
+                    </div>
+                    <h2 style="color: #ffffff; font-size: 22px; margin-bottom: 16px;">Reset Your Password</h2>
+                    <p style="color: #cbd5e1; line-height: 1.6; margin-bottom: 24px;">We received a request to reset your password. Click the button below to create a new password.</p>
+                    <div style="text-align: center; margin: 32px 0;">
+                        <a href="${resetUrl}" style="display: inline-block; padding: 16px 48px; background: linear-gradient(135deg, #06b6d4 0%, #8b5cf6 100%); color: white; text-decoration: none; border-radius: 8px; font-weight: 600; box-shadow: 0 4px 15px rgba(6, 182, 212, 0.4);">Reset Password</a>
+                    </div>
+                    <p style="color: #94a3b8; font-size: 13px; margin-top: 24px;">If the button doesn't work, copy this URL: <a href="${resetUrl}" style="color: #06b6d4;">${resetUrl}</a></p>
+                    <div style="margin-top: 24px; padding: 12px; background: rgba(248, 113, 113, 0.1); border-left: 4px solid #f87171; border-radius: 4px;">
+                        <p style="margin: 0; color: #f87171; font-size: 13px;">⏰ This link expires in 1 hour.</p>
+                    </div>
+                    <p style="color: #64748b; font-size: 12px; margin-top: 24px;">If you didn't request a password reset, please ignore this email. Your password will remain unchanged.</p>
                 </div>
             `,
         });
 
+        log.info({ to: email }, 'Password reset email sent');
         return true;
     } catch (error) {
         log.error({ error, email }, 'Failed to send password reset email');
         return false;
     }
 }
+

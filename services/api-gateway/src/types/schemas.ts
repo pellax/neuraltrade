@@ -56,6 +56,14 @@ export const resetPasswordSchema = z.object({
         .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character'),
 });
 
+export const emailSchema = z.object({
+    email: z.string().email('Invalid email address'),
+});
+
+export const verifyEmailSchema = z.object({
+    token: z.string().min(1, 'Token is required'),
+});
+
 // ============================================
 // USER SCHEMAS
 // ============================================

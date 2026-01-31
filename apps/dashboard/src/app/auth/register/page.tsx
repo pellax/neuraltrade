@@ -8,6 +8,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3010';
+
 export default function RegisterPage() {
     const [formData, setFormData] = useState({
         email: '',
@@ -19,6 +21,7 @@ export default function RegisterPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
     const [passwordStrength, setPasswordStrength] = useState(0);
+    const [registrationSuccess, setRegistrationSuccess] = useState(false);
 
     const updateField = (field: string, value: string) => {
         setFormData(prev => ({ ...prev, [field]: value }));
@@ -54,10 +57,32 @@ export default function RegisterPage() {
 
         setIsLoading(true);
 
-        // Simulate API call
-        setTimeout(() => {
-            window.location.href = '/auth/login?registered=true';
-        }, 1500);
+        try {
+            const response = await fetch(`${API_URL}/auth/register`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    email: formData.email,
+                    password: formData.password,
+                    firstName: formData.firstName || undefined,
+                    lastName: formData.lastName || undefined,
+                }),
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                setRegistrationSuccess(true);
+            } else {
+                setError(data.error?.message || 'Registration failed. Please try again.');
+            }
+        } catch (err) {
+            setError('Unable to connect to server. Please try again later.');
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -112,7 +137,7 @@ export default function RegisterPage() {
                         WebkitTextFillColor: 'transparent',
                         marginBottom: 'var(--space-2)',
                     }}>
-                        Create Your Account
+                        {registrationSuccess ? 'Check Your Email' : 'Create Your Account'}
                     </h1>
                     <p className="text-muted" style={{ fontSize: '0.875rem' }}>
                         Start trading with AI-powered strategies
@@ -126,238 +151,315 @@ export default function RegisterPage() {
                     backdropFilter: 'blur(20px)',
                     border: '1px solid var(--border-subtle)',
                 }}>
-                    <form onSubmit={handleSubmit}>
-                        {/* Error Message */}
-                        {error && (
+                    {registrationSuccess ? (
+                        /* Success Message */
+                        <div style={{ textAlign: 'center' }}>
+                            <div style={{
+                                width: 80,
+                                height: 80,
+                                margin: '0 auto var(--space-4)',
+                                background: 'rgba(34, 197, 94, 0.1)',
+                                borderRadius: '50%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                            }}>
+                                <span style={{ fontSize: '2.5rem' }}>📧</span>
+                            </div>
+                            <h2 style={{
+                                color: 'var(--text-primary)',
+                                fontSize: '1.25rem',
+                                marginBottom: 'var(--space-3)',
+                            }}>
+                                Verify Your Email
+                            </h2>
+                            <p style={{
+                                color: 'var(--text-secondary)',
+                                lineHeight: 1.6,
+                                marginBottom: 'var(--space-4)',
+                            }}>
+                                We've sent a verification link to <strong style={{ color: 'var(--brand-cyan)' }}>{formData.email}</strong>.
+                                Please check your inbox and click the link to activate your account.
+                            </p>
                             <div style={{
                                 padding: 'var(--space-3)',
-                                marginBottom: 'var(--space-4)',
-                                background: 'rgba(248, 113, 113, 0.15)',
-                                border: '1px solid rgba(248, 113, 113, 0.3)',
+                                background: 'rgba(251, 191, 36, 0.1)',
+                                border: '1px solid rgba(251, 191, 36, 0.3)',
                                 borderRadius: 'var(--radius-md)',
-                                color: '#f87171',
-                                fontSize: '0.875rem',
+                                marginBottom: 'var(--space-4)',
                             }}>
-                                {error}
+                                <p style={{ color: '#fbbf24', fontSize: '0.875rem', margin: 0 }}>
+                                    ⏰ The verification link expires in 24 hours
+                                </p>
                             </div>
-                        )}
-
-                        {/* Name Fields */}
-                        <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: '1fr 1fr',
-                            gap: 'var(--space-4)',
-                            marginBottom: 'var(--space-4)',
-                        }}>
-                            <div>
-                                <label style={{
-                                    display: 'block',
-                                    marginBottom: 'var(--space-2)',
-                                    fontSize: '0.875rem',
-                                    color: 'var(--text-secondary)',
-                                }}>
-                                    First Name
-                                </label>
-                                <input
-                                    type="text"
-                                    value={formData.firstName}
-                                    onChange={(e) => updateField('firstName', e.target.value)}
-                                    placeholder="John"
+                            <p style={{
+                                color: 'var(--text-muted)',
+                                fontSize: '0.875rem',
+                                marginBottom: 'var(--space-4)',
+                            }}>
+                                Didn't receive the email? Check your spam folder or{' '}
+                                <button
+                                    onClick={() => setRegistrationSuccess(false)}
                                     style={{
-                                        width: '100%',
-                                        padding: 'var(--space-3)',
-                                        background: 'var(--bg-base)',
-                                        border: '1px solid var(--border-subtle)',
-                                        borderRadius: 'var(--radius-md)',
-                                        color: 'var(--text-primary)',
-                                        fontSize: '1rem',
-                                        outline: 'none',
+                                        color: 'var(--brand-cyan)',
+                                        background: 'none',
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        textDecoration: 'underline',
                                     }}
-                                />
-                            </div>
-                            <div>
-                                <label style={{
-                                    display: 'block',
-                                    marginBottom: 'var(--space-2)',
+                                >
+                                    try again
+                                </button>
+                            </p>
+                            <Link
+                                href="/auth/login"
+                                style={{
+                                    display: 'inline-block',
+                                    padding: 'var(--space-3) var(--space-6)',
+                                    background: 'var(--brand-gradient)',
+                                    borderRadius: 'var(--radius-md)',
+                                    color: 'white',
+                                    fontWeight: 600,
+                                    textDecoration: 'none',
+                                }}
+                            >
+                                Go to Login
+                            </Link>
+                        </div>
+                    ) : (
+                        <form onSubmit={handleSubmit}>
+                            {/* Error Message */}
+                            {error && (
+                                <div style={{
+                                    padding: 'var(--space-3)',
+                                    marginBottom: 'var(--space-4)',
+                                    background: 'rgba(248, 113, 113, 0.15)',
+                                    border: '1px solid rgba(248, 113, 113, 0.3)',
+                                    borderRadius: 'var(--radius-md)',
+                                    color: '#f87171',
                                     fontSize: '0.875rem',
-                                    color: 'var(--text-secondary)',
                                 }}>
-                                    Last Name
-                                </label>
-                                <input
-                                    type="text"
-                                    value={formData.lastName}
-                                    onChange={(e) => updateField('lastName', e.target.value)}
-                                    placeholder="Doe"
-                                    style={{
-                                        width: '100%',
-                                        padding: 'var(--space-3)',
-                                        background: 'var(--bg-base)',
-                                        border: '1px solid var(--border-subtle)',
-                                        borderRadius: 'var(--radius-md)',
-                                        color: 'var(--text-primary)',
-                                        fontSize: '1rem',
-                                        outline: 'none',
-                                    }}
-                                />
-                            </div>
-                        </div>
-
-                        {/* Email */}
-                        <div style={{ marginBottom: 'var(--space-4)' }}>
-                            <label style={{
-                                display: 'block',
-                                marginBottom: 'var(--space-2)',
-                                fontSize: '0.875rem',
-                                color: 'var(--text-secondary)',
-                            }}>
-                                Email <span style={{ color: 'var(--status-error)' }}>*</span>
-                            </label>
-                            <input
-                                type="email"
-                                value={formData.email}
-                                onChange={(e) => updateField('email', e.target.value)}
-                                placeholder="your@email.com"
-                                required
-                                style={{
-                                    width: '100%',
-                                    padding: 'var(--space-3)',
-                                    background: 'var(--bg-base)',
-                                    border: '1px solid var(--border-subtle)',
-                                    borderRadius: 'var(--radius-md)',
-                                    color: 'var(--text-primary)',
-                                    fontSize: '1rem',
-                                    outline: 'none',
-                                }}
-                            />
-                        </div>
-
-                        {/* Password */}
-                        <div style={{ marginBottom: 'var(--space-4)' }}>
-                            <label style={{
-                                display: 'block',
-                                marginBottom: 'var(--space-2)',
-                                fontSize: '0.875rem',
-                                color: 'var(--text-secondary)',
-                            }}>
-                                Password <span style={{ color: 'var(--status-error)' }}>*</span>
-                            </label>
-                            <input
-                                type="password"
-                                value={formData.password}
-                                onChange={(e) => updateField('password', e.target.value)}
-                                placeholder="Create a strong password"
-                                required
-                                style={{
-                                    width: '100%',
-                                    padding: 'var(--space-3)',
-                                    background: 'var(--bg-base)',
-                                    border: '1px solid var(--border-subtle)',
-                                    borderRadius: 'var(--radius-md)',
-                                    color: 'var(--text-primary)',
-                                    fontSize: '1rem',
-                                    outline: 'none',
-                                }}
-                            />
-                            {/* Password Strength */}
-                            {formData.password && (
-                                <div style={{ marginTop: 'var(--space-2)' }}>
-                                    <div style={{
-                                        display: 'flex',
-                                        gap: '4px',
-                                        marginBottom: 'var(--space-1)',
-                                    }}>
-                                        {[1, 2, 3, 4, 5].map((level) => (
-                                            <div
-                                                key={level}
-                                                style={{
-                                                    flex: 1,
-                                                    height: 4,
-                                                    borderRadius: 2,
-                                                    background: passwordStrength >= level
-                                                        ? strengthColors[passwordStrength - 1]
-                                                        : 'var(--bg-elevated)',
-                                                    transition: 'background var(--transition-base)',
-                                                }}
-                                            />
-                                        ))}
-                                    </div>
-                                    <span style={{
-                                        fontSize: '0.75rem',
-                                        color: strengthColors[passwordStrength - 1] || 'var(--text-muted)',
-                                    }}>
-                                        {passwordStrength > 0 ? strengthLabels[passwordStrength - 1] : 'Enter password'}
-                                    </span>
+                                    {error}
                                 </div>
                             )}
-                        </div>
 
-                        {/* Confirm Password */}
-                        <div style={{ marginBottom: 'var(--space-5)' }}>
-                            <label style={{
-                                display: 'block',
-                                marginBottom: 'var(--space-2)',
-                                fontSize: '0.875rem',
-                                color: 'var(--text-secondary)',
+                            {/* Name Fields */}
+                            <div style={{
+                                display: 'grid',
+                                gridTemplateColumns: '1fr 1fr',
+                                gap: 'var(--space-4)',
+                                marginBottom: 'var(--space-4)',
                             }}>
-                                Confirm Password <span style={{ color: 'var(--status-error)' }}>*</span>
-                            </label>
-                            <input
-                                type="password"
-                                value={formData.confirmPassword}
-                                onChange={(e) => updateField('confirmPassword', e.target.value)}
-                                placeholder="Confirm your password"
-                                required
+                                <div>
+                                    <label style={{
+                                        display: 'block',
+                                        marginBottom: 'var(--space-2)',
+                                        fontSize: '0.875rem',
+                                        color: 'var(--text-secondary)',
+                                    }}>
+                                        First Name
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={formData.firstName}
+                                        onChange={(e) => updateField('firstName', e.target.value)}
+                                        placeholder="John"
+                                        style={{
+                                            width: '100%',
+                                            padding: 'var(--space-3)',
+                                            background: 'var(--bg-base)',
+                                            border: '1px solid var(--border-subtle)',
+                                            borderRadius: 'var(--radius-md)',
+                                            color: 'var(--text-primary)',
+                                            fontSize: '1rem',
+                                            outline: 'none',
+                                        }}
+                                    />
+                                </div>
+                                <div>
+                                    <label style={{
+                                        display: 'block',
+                                        marginBottom: 'var(--space-2)',
+                                        fontSize: '0.875rem',
+                                        color: 'var(--text-secondary)',
+                                    }}>
+                                        Last Name
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={formData.lastName}
+                                        onChange={(e) => updateField('lastName', e.target.value)}
+                                        placeholder="Doe"
+                                        style={{
+                                            width: '100%',
+                                            padding: 'var(--space-3)',
+                                            background: 'var(--bg-base)',
+                                            border: '1px solid var(--border-subtle)',
+                                            borderRadius: 'var(--radius-md)',
+                                            color: 'var(--text-primary)',
+                                            fontSize: '1rem',
+                                            outline: 'none',
+                                        }}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Email */}
+                            <div style={{ marginBottom: 'var(--space-4)' }}>
+                                <label style={{
+                                    display: 'block',
+                                    marginBottom: 'var(--space-2)',
+                                    fontSize: '0.875rem',
+                                    color: 'var(--text-secondary)',
+                                }}>
+                                    Email <span style={{ color: 'var(--status-error)' }}>*</span>
+                                </label>
+                                <input
+                                    type="email"
+                                    value={formData.email}
+                                    onChange={(e) => updateField('email', e.target.value)}
+                                    placeholder="your@email.com"
+                                    required
+                                    style={{
+                                        width: '100%',
+                                        padding: 'var(--space-3)',
+                                        background: 'var(--bg-base)',
+                                        border: '1px solid var(--border-subtle)',
+                                        borderRadius: 'var(--radius-md)',
+                                        color: 'var(--text-primary)',
+                                        fontSize: '1rem',
+                                        outline: 'none',
+                                    }}
+                                />
+                            </div>
+
+                            {/* Password */}
+                            <div style={{ marginBottom: 'var(--space-4)' }}>
+                                <label style={{
+                                    display: 'block',
+                                    marginBottom: 'var(--space-2)',
+                                    fontSize: '0.875rem',
+                                    color: 'var(--text-secondary)',
+                                }}>
+                                    Password <span style={{ color: 'var(--status-error)' }}>*</span>
+                                </label>
+                                <input
+                                    type="password"
+                                    value={formData.password}
+                                    onChange={(e) => updateField('password', e.target.value)}
+                                    placeholder="Create a strong password"
+                                    required
+                                    style={{
+                                        width: '100%',
+                                        padding: 'var(--space-3)',
+                                        background: 'var(--bg-base)',
+                                        border: '1px solid var(--border-subtle)',
+                                        borderRadius: 'var(--radius-md)',
+                                        color: 'var(--text-primary)',
+                                        fontSize: '1rem',
+                                        outline: 'none',
+                                    }}
+                                />
+                                {/* Password Strength */}
+                                {formData.password && (
+                                    <div style={{ marginTop: 'var(--space-2)' }}>
+                                        <div style={{
+                                            display: 'flex',
+                                            gap: '4px',
+                                            marginBottom: 'var(--space-1)',
+                                        }}>
+                                            {[1, 2, 3, 4, 5].map((level) => (
+                                                <div
+                                                    key={level}
+                                                    style={{
+                                                        flex: 1,
+                                                        height: 4,
+                                                        borderRadius: 2,
+                                                        background: passwordStrength >= level
+                                                            ? strengthColors[passwordStrength - 1]
+                                                            : 'var(--bg-elevated)',
+                                                        transition: 'background var(--transition-base)',
+                                                    }}
+                                                />
+                                            ))}
+                                        </div>
+                                        <span style={{
+                                            fontSize: '0.75rem',
+                                            color: strengthColors[passwordStrength - 1] || 'var(--text-muted)',
+                                        }}>
+                                            {passwordStrength > 0 ? strengthLabels[passwordStrength - 1] : 'Enter password'}
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Confirm Password */}
+                            <div style={{ marginBottom: 'var(--space-5)' }}>
+                                <label style={{
+                                    display: 'block',
+                                    marginBottom: 'var(--space-2)',
+                                    fontSize: '0.875rem',
+                                    color: 'var(--text-secondary)',
+                                }}>
+                                    Confirm Password <span style={{ color: 'var(--status-error)' }}>*</span>
+                                </label>
+                                <input
+                                    type="password"
+                                    value={formData.confirmPassword}
+                                    onChange={(e) => updateField('confirmPassword', e.target.value)}
+                                    placeholder="Confirm your password"
+                                    required
+                                    style={{
+                                        width: '100%',
+                                        padding: 'var(--space-3)',
+                                        background: 'var(--bg-base)',
+                                        border: `1px solid ${formData.confirmPassword && formData.password !== formData.confirmPassword
+                                            ? 'var(--status-error)'
+                                            : 'var(--border-subtle)'
+                                            }`,
+                                        borderRadius: 'var(--radius-md)',
+                                        color: 'var(--text-primary)',
+                                        fontSize: '1rem',
+                                        outline: 'none',
+                                    }}
+                                />
+                            </div>
+
+                            {/* Terms */}
+                            <p style={{
+                                fontSize: '0.75rem',
+                                color: 'var(--text-muted)',
+                                marginBottom: 'var(--space-4)',
+                                lineHeight: 1.5,
+                            }}>
+                                By creating an account, you agree to our{' '}
+                                <a href="#" style={{ color: 'var(--brand-cyan)' }}>Terms of Service</a>
+                                {' '}and{' '}
+                                <a href="#" style={{ color: 'var(--brand-cyan)' }}>Privacy Policy</a>.
+                            </p>
+
+                            {/* Submit Button */}
+                            <button
+                                type="submit"
+                                disabled={isLoading}
                                 style={{
                                     width: '100%',
                                     padding: 'var(--space-3)',
-                                    background: 'var(--bg-base)',
-                                    border: `1px solid ${formData.confirmPassword && formData.password !== formData.confirmPassword
-                                            ? 'var(--status-error)'
-                                            : 'var(--border-subtle)'
-                                        }`,
+                                    background: isLoading ? 'var(--bg-elevated)' : 'var(--brand-gradient)',
+                                    border: 'none',
                                     borderRadius: 'var(--radius-md)',
-                                    color: 'var(--text-primary)',
+                                    color: 'white',
                                     fontSize: '1rem',
-                                    outline: 'none',
+                                    fontWeight: 600,
+                                    cursor: isLoading ? 'not-allowed' : 'pointer',
+                                    transition: 'all var(--transition-base)',
+                                    boxShadow: isLoading ? 'none' : '0 4px 20px rgba(6, 182, 212, 0.3)',
                                 }}
-                            />
-                        </div>
-
-                        {/* Terms */}
-                        <p style={{
-                            fontSize: '0.75rem',
-                            color: 'var(--text-muted)',
-                            marginBottom: 'var(--space-4)',
-                            lineHeight: 1.5,
-                        }}>
-                            By creating an account, you agree to our{' '}
-                            <a href="#" style={{ color: 'var(--brand-cyan)' }}>Terms of Service</a>
-                            {' '}and{' '}
-                            <a href="#" style={{ color: 'var(--brand-cyan)' }}>Privacy Policy</a>.
-                        </p>
-
-                        {/* Submit Button */}
-                        <button
-                            type="submit"
-                            disabled={isLoading}
-                            style={{
-                                width: '100%',
-                                padding: 'var(--space-3)',
-                                background: isLoading ? 'var(--bg-elevated)' : 'var(--brand-gradient)',
-                                border: 'none',
-                                borderRadius: 'var(--radius-md)',
-                                color: 'white',
-                                fontSize: '1rem',
-                                fontWeight: 600,
-                                cursor: isLoading ? 'not-allowed' : 'pointer',
-                                transition: 'all var(--transition-base)',
-                                boxShadow: isLoading ? 'none' : '0 4px 20px rgba(6, 182, 212, 0.3)',
-                            }}
-                        >
-                            {isLoading ? 'Creating Account...' : 'Create Account'}
-                        </button>
-                    </form>
+                            >
+                                {isLoading ? 'Creating Account...' : 'Create Account'}
+                            </button>
+                        </form>
+                    )}
                 </div>
 
                 {/* Sign In Link */}

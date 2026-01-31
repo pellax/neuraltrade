@@ -21,12 +21,14 @@ import type {
     RefreshToken,
 } from '../types/index.js';
 import type { RegisterInput, LoginInput } from '../types/schemas.js';
+import { publishEmailVerification } from './rabbitmq.js';
 
 const log = createLogger('AuthService');
 
 const SALT_ROUNDS = 12;
 const ACCESS_TOKEN_EXPIRY = '15m';
 const REFRESH_TOKEN_EXPIRY_DAYS = 7;
+const EMAIL_VERIFICATION_EXPIRY_HOURS = 24;
 
 // ============================================
 // USER MANAGEMENT
@@ -47,6 +49,11 @@ export async function createUser(input: RegisterInput): Promise<UserPublic> {
     // Hash password
     const passwordHash = await bcrypt.hash(input.password, SALT_ROUNDS);
 
+    // Generate email verification token
+    const emailVerificationToken = generateRefreshToken();
+    const emailVerificationExpires = new Date();
+    emailVerificationExpires.setHours(emailVerificationExpires.getHours() + EMAIL_VERIFICATION_EXPIRY_HOURS);
+
     const now = new Date();
     const user: Omit<User, '_id'> = {
         email: input.email.toLowerCase(),
@@ -57,6 +64,8 @@ export async function createUser(input: RegisterInput): Promise<UserPublic> {
         subscription: 'free',
         twoFactorEnabled: false,
         emailVerified: false,
+        emailVerificationToken,
+        emailVerificationExpires,
         createdAt: now,
         updatedAt: now,
     };
@@ -64,6 +73,14 @@ export async function createUser(input: RegisterInput): Promise<UserPublic> {
     const result = await users.insertOne(user as User);
 
     log.info({ userId: result.insertedId.toString() }, 'User created');
+
+    // Send verification email via RabbitMQ
+    try {
+        await publishEmailVerification(input.email.toLowerCase(), emailVerificationToken);
+        log.info({ email: input.email }, 'Verification email queued');
+    } catch (err) {
+        log.error({ err, email: input.email }, 'Failed to queue verification email');
+    }
 
     return toPublicUser({ ...user, _id: result.insertedId.toString() } as User);
 }
@@ -123,6 +140,11 @@ export async function authenticateUser(
     const validPassword = await bcrypt.compare(input.password, user.passwordHash);
     if (!validPassword) {
         throw new Error('Invalid credentials');
+    }
+
+    // Check if email is verified
+    if (!user.emailVerified) {
+        throw new Error('Email not verified. Please check your inbox for the verification link.');
     }
 
     // Check 2FA
@@ -368,3 +390,175 @@ export async function disable2FA(userId: string): Promise<void> {
 
     log.info({ userId }, '2FA disabled');
 }
+
+// ============================================
+// EMAIL VERIFICATION
+// ============================================
+
+/**
+ * Verify user email with token
+ */
+export async function verifyEmail(token: string): Promise<boolean> {
+    const { users } = getCollections();
+
+    // Find user with this verification token
+    const user = await users.findOne({
+        emailVerificationToken: token,
+        emailVerificationExpires: { $gt: new Date() },
+    });
+
+    if (!user) {
+        return false;
+    }
+
+    // Update user to verified
+    await users.updateOne(
+        { _id: user._id },
+        {
+            $set: {
+                emailVerified: true,
+                updatedAt: new Date(),
+            },
+            $unset: {
+                emailVerificationToken: '',
+                emailVerificationExpires: '',
+            },
+        }
+    );
+
+    log.info({ userId: user._id.toString() }, 'Email verified');
+    return true;
+}
+
+/**
+ * Resend verification email
+ */
+export async function resendVerificationEmail(email: string): Promise<{ success: boolean; message: string }> {
+    const { users } = getCollections();
+
+    const user = await users.findOne({ email: email.toLowerCase() });
+
+    if (!user) {
+        // Don't reveal if user exists
+        return { success: true, message: 'If the email exists, a verification link has been sent.' };
+    }
+
+    if (user.emailVerified) {
+        return { success: false, message: 'Email is already verified.' };
+    }
+
+    // Generate new verification token
+    const emailVerificationToken = generateRefreshToken();
+    const emailVerificationExpires = new Date();
+    emailVerificationExpires.setHours(emailVerificationExpires.getHours() + EMAIL_VERIFICATION_EXPIRY_HOURS);
+
+    await users.updateOne(
+        { _id: user._id },
+        {
+            $set: {
+                emailVerificationToken,
+                emailVerificationExpires,
+                updatedAt: new Date(),
+            },
+        }
+    );
+
+    // Send verification email
+    try {
+        await publishEmailVerification(email.toLowerCase(), emailVerificationToken);
+        log.info({ email }, 'Verification email resent');
+    } catch (err) {
+        log.error({ err, email }, 'Failed to resend verification email');
+        return { success: false, message: 'Failed to send verification email. Please try again.' };
+    }
+
+    return { success: true, message: 'Verification email sent. Please check your inbox.' };
+}
+
+/**
+ * Generate password reset token
+ */
+export async function generatePasswordResetToken(email: string): Promise<{ success: boolean; message: string }> {
+    const { users } = getCollections();
+
+    const user = await users.findOne({ email: email.toLowerCase() });
+
+    if (!user) {
+        // Don't reveal if user exists - security best practice
+        return { success: true, message: 'If the email exists, a password reset link has been sent.' };
+    }
+
+    // Generate reset token
+    const passwordResetToken = generateRefreshToken();
+    const passwordResetExpires = new Date();
+    passwordResetExpires.setHours(passwordResetExpires.getHours() + 1); // 1 hour expiry
+
+    await users.updateOne(
+        { _id: user._id },
+        {
+            $set: {
+                passwordResetToken,
+                passwordResetExpires,
+                updatedAt: new Date(),
+            },
+        }
+    );
+
+    // Send password reset email via RabbitMQ
+    try {
+        const { publishPasswordReset } = await import('./rabbitmq.js');
+        await publishPasswordReset(email.toLowerCase(), passwordResetToken);
+        log.info({ email }, 'Password reset email queued');
+    } catch (err) {
+        log.error({ err, email }, 'Failed to queue password reset email');
+        return { success: false, message: 'Failed to send reset email. Please try again.' };
+    }
+
+    return { success: true, message: 'If the email exists, a password reset link has been sent.' };
+}
+
+/**
+ * Reset password with token
+ */
+export async function resetPassword(token: string, newPassword: string): Promise<boolean> {
+    const { users } = getCollections();
+
+    // Find user with this reset token
+    const user = await users.findOne({
+        passwordResetToken: token,
+        passwordResetExpires: { $gt: new Date() },
+    });
+
+    if (!user) {
+        return false;
+    }
+
+    // Hash new password
+    const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+
+    // Update password and clear reset token
+    await users.updateOne(
+        { _id: user._id },
+        {
+            $set: {
+                passwordHash,
+                updatedAt: new Date(),
+            },
+            $unset: {
+                passwordResetToken: '',
+                passwordResetExpires: '',
+            },
+        }
+    );
+
+    // Invalidate all refresh tokens for security
+    const { refreshTokens } = getCollections();
+    await refreshTokens.updateMany(
+        { userId: user._id.toString(), revokedAt: { $exists: false } },
+        { $set: { revokedAt: new Date() } }
+    );
+
+    log.info({ userId: user._id.toString() }, 'Password reset successful');
+    return true;
+}
+

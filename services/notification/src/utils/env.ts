@@ -48,6 +48,9 @@ const envSchema = z.object({
     // Retry Config
     MAX_RETRY_ATTEMPTS: z.coerce.number().default(3),
     RETRY_DELAY_MS: z.coerce.number().default(5000),
+
+    // Frontend URL for verification links
+    FRONTEND_URL: z.string().url().default('http://localhost:3100'),
 });
 
 export type Env = z.infer<typeof envSchema>;

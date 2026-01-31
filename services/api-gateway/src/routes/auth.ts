@@ -14,6 +14,10 @@ import {
     enable2FA,
     disable2FA,
     toPublicUser,
+    verifyEmail,
+    resendVerificationEmail,
+    generatePasswordResetToken,
+    resetPassword,
 } from '../services/auth.js';
 import { requireAuth } from '../middleware/auth.js';
 import { authRateLimit, passwordResetRateLimit } from '../middleware/rateLimit.js';
@@ -23,6 +27,8 @@ import {
     loginSchema,
     refreshTokenSchema,
     verify2faSchema,
+    emailSchema,
+    resetPasswordSchema,
 } from '../types/schemas.js';
 import type { AuthenticatedRequest, ApiResponse } from '../types/index.js';
 import { createLogger } from '../utils/logger.js';
@@ -358,4 +364,141 @@ router.get(
     }
 );
 
+// ============================================
+// EMAIL VERIFICATION
+// ============================================
+
+/**
+ * GET /auth/verify-email/:token
+ * Verify email with token
+ */
+router.get(
+    '/verify-email/:token',
+    async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+        try {
+            const { token } = req.params;
+
+            const verified = await verifyEmail(token);
+
+            if (!verified) {
+                res.status(400).json({
+                    success: false,
+                    error: { code: 'AUTH_1007', message: 'Invalid or expired verification token' },
+                } satisfies ApiResponse);
+                return;
+            }
+
+            res.json({
+                success: true,
+                data: { message: 'Email verified successfully. You can now log in.' },
+            } satisfies ApiResponse);
+        } catch (error) {
+            res.status(500).json({
+                success: false,
+                error: { code: 'SERVER_5001', message: 'Failed to verify email' },
+            } satisfies ApiResponse);
+        }
+    }
+);
+
+/**
+ * POST /auth/resend-verification
+ * Resend verification email
+ */
+router.post(
+    '/resend-verification',
+    authRateLimit,
+    validateBody(emailSchema),
+    async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+        try {
+            const { email } = req.body;
+            const result = await resendVerificationEmail(email);
+
+            if (!result.success) {
+                res.status(400).json({
+                    success: false,
+                    error: { code: 'AUTH_1008', message: result.message },
+                } satisfies ApiResponse);
+                return;
+            }
+
+            res.json({
+                success: true,
+                data: { message: result.message },
+            } satisfies ApiResponse);
+        } catch (error) {
+            res.status(500).json({
+                success: false,
+                error: { code: 'SERVER_5001', message: 'Failed to resend verification email' },
+            } satisfies ApiResponse);
+        }
+    }
+);
+
+// ============================================
+// PASSWORD RESET
+// ============================================
+
+/**
+ * POST /auth/forgot-password
+ * Request password reset email
+ */
+router.post(
+    '/forgot-password',
+    passwordResetRateLimit,
+    validateBody(emailSchema),
+    async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+        try {
+            const { email } = req.body;
+            const result = await generatePasswordResetToken(email);
+
+            // Always return success to prevent email enumeration
+            res.json({
+                success: true,
+                data: { message: result.message },
+            } satisfies ApiResponse);
+        } catch (error) {
+            res.status(500).json({
+                success: false,
+                error: { code: 'SERVER_5001', message: 'Failed to process password reset request' },
+            } satisfies ApiResponse);
+        }
+    }
+);
+
+/**
+ * POST /auth/reset-password
+ * Reset password with token
+ */
+router.post(
+    '/reset-password',
+    validateBody(resetPasswordSchema),
+    async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+        try {
+            const { token, newPassword } = req.body;
+
+            const success = await resetPassword(token, newPassword);
+
+            if (!success) {
+                res.status(400).json({
+                    success: false,
+                    error: { code: 'AUTH_1009', message: 'Invalid or expired reset token' },
+                } satisfies ApiResponse);
+                return;
+            }
+
+            res.json({
+                success: true,
+                data: { message: 'Password reset successfully. You can now log in with your new password.' },
+            } satisfies ApiResponse);
+        } catch (error) {
+            res.status(500).json({
+                success: false,
+                error: { code: 'SERVER_5001', message: 'Failed to reset password' },
+            } satisfies ApiResponse);
+        }
+    }
+);
+
 export default router;
+

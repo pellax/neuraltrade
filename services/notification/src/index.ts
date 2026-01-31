@@ -8,6 +8,7 @@ import { env } from './utils/env.js';
 import { initEmailService, closeEmailService } from './services/email.js';
 import { initDispatcher, closeDispatcher } from './services/dispatcher.js';
 import { startNotificationWorker, stopNotificationWorker } from './workers/notification-consumer.js';
+import { startEmailVerificationWorker, stopEmailVerificationWorker } from './workers/email-verification-consumer.js';
 
 const log = createLogger('NotificationService');
 
@@ -38,6 +39,10 @@ async function start(): Promise<void> {
         await startNotificationWorker();
         log.info('Notification worker started');
 
+        // Start email verification consumer
+        await startEmailVerificationWorker();
+        log.info('Email verification worker started');
+
         log.info('🔔 Notification Service is running');
 
     } catch (error) {
@@ -52,6 +57,7 @@ async function shutdown(signal: string): Promise<void> {
     try {
         // Stop consuming
         await stopNotificationWorker();
+        await stopEmailVerificationWorker();
 
         // Close services
         await closeEmailService();

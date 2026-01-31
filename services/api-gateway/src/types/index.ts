@@ -20,6 +20,10 @@ export interface User {
     twoFactorSecret?: string;
     subscription: SubscriptionTier;
     emailVerified: boolean;
+    emailVerificationToken?: string;
+    emailVerificationExpires?: Date;
+    passwordResetToken?: string;
+    passwordResetExpires?: Date;
     lastLoginAt?: Date;
     createdAt: Date;
     updatedAt: Date;
