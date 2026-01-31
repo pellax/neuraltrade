@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{title}}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #e2e8f0;
+            background-color: #0f172a;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            padding: 30px 0;
+            background: linear-gradient(135deg, #06b6d4 0%, #8b5cf6 100%);
+            border-radius: 12px 12px 0 0;
+        }
+        .logo {
+            font-size: 28px;
+            font-weight: 700;
+            color: white;
+            letter-spacing: -0.5px;
+        }
+        .logo span {
+            color: #06b6d4;
+        }
+        .content {
+            background-color: #1e293b;
+            padding: 30px;
+            border-radius: 0 0 12px 12px;
+        }
+        h1 {
+            color: #f8fafc;
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+        p {
+            color: #94a3b8;
+            margin-bottom: 15px;
+        }
+        .highlight {
+            color: #06b6d4;
+            font-weight: 600;
+        }
+        .success {
+            color: #4ade80;
+        }
+        .danger {
+            color: #f87171;
+        }
+        .button {
+            display: inline-block;
+            padding: 14px 28px;
+            background: linear-gradient(135deg, #06b6d4 0%, #8b5cf6 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            margin: 20px 0;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .stat-card {
+            background-color: #0f172a;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #f8fafc;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #64748b;
+            text-transform: uppercase;
+        }
+        .trade-info {
+            background-color: #0f172a;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .trade-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #334155;
+        }
+        .trade-row:last-child {
+            border-bottom: none;
+        }
+        .trade-label {
+            color: #64748b;
+        }
+        .trade-value {
+            color: #f8fafc;
+            font-weight: 500;
+        }
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #64748b;
+            font-size: 12px;
+        }
+        .footer a {
+            color: #06b6d4;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">Neural<span>Trade</span></div>
+        </div>
+        <div class="content">
+            {{{body}}}
+        </div>
+        <div class="footer">
+            <p>© {{year}} NeuralTrade. All rights reserved.</p>
+            <p>
+                <a href="{{dashboardUrl}}">Dashboard</a> · 
+                <a href="{{settingsUrl}}">Settings</a> · 
+                <a href="{{unsubscribeUrl}}">Unsubscribe</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html>

@@ -9,7 +9,7 @@ services:
     container_name: neuraltrade-rabbitmq
     hostname: rabbitmq
     ports:
-      - "5672:5672"   # AMQP
+      - "5672:5672" # AMQP
       - "15672:15672" # Management UI
     environment:
       RABBITMQ_DEFAULT_USER: neuraltrade
@@ -18,7 +18,7 @@ services:
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      test: [ "CMD", "rabbitmq-diagnostics", "-q", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -44,7 +44,7 @@ services:
       - influxdb_data:/var/lib/influxdb2
       - influxdb_config:/etc/influxdb2
     healthcheck:
-      test: ["CMD", "influx", "ping"]
+      test: [ "CMD", "influx", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -67,7 +67,7 @@ services:
       - mongodb_data:/data/db
       - ./infrastructure/scripts/mongo-init.js:/docker-entrypoint-initdb.d/init.js:ro
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test: [ "CMD", "mongosh", "--eval", "db.adminCommand('ping')" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -81,12 +81,12 @@ services:
     image: redis:7.2-alpine
     container_name: neuraltrade-redis
     ports:
-      - "6379:6379"
+      - "6380:6379"
     command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -168,6 +168,78 @@ services:
       - rabbitmq
       - ingestion
       - ml-engine
+    networks:
+      - neuraltrade-net
+    restart: unless-stopped
+
+  # ===========================================
+  # TRADING SERVICE (Order Execution)
+  # ===========================================
+  trading:
+    build:
+      context: ./services/trading
+      dockerfile: Dockerfile
+    container_name: neuraltrade-trading
+    environment:
+      NODE_ENV: development
+      MONGODB_URI: mongodb://admin:neuraltrade_secure_2026@mongodb:27017/neuraltrade?authSource=admin
+      REDIS_URL: redis://redis:6379
+      RABBITMQ_URL: amqp://neuraltrade:neuraltrade_rmq_2026@rabbitmq:5672
+      ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      SIGNALS_QUEUE: trading.signals
+      ORDERS_QUEUE: trading.orders
+      POSITIONS_EXCHANGE: trading.positions
+      MIN_CONFIDENCE_THRESHOLD: "0.7"
+      MAX_POSITION_SIZE_PERCENT: "10"
+      MAX_DAILY_LOSS_PERCENT: "5"
+      MAX_OPEN_POSITIONS: "10"
+      MAX_LEVERAGE: "3"
+      REQUIRE_STOP_LOSS: "true"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - neuraltrade-net
+    restart: unless-stopped
+
+  # ===========================================
+  # NOTIFICATION SERVICE (Multi-channel alerts)
+  # ===========================================
+  notification:
+    build:
+      context: ./services/notification
+      dockerfile: Dockerfile
+    container_name: neuraltrade-notification
+    environment:
+      NODE_ENV: development
+      MONGODB_URI: mongodb://admin:neuraltrade_secure_2026@mongodb:27017/neuraltrade?authSource=admin
+      REDIS_URL: redis://redis:6379
+      RABBITMQ_URL: amqp://neuraltrade:neuraltrade_rmq_2026@rabbitmq:5672
+      NOTIFICATIONS_QUEUE: notifications
+      # Email (configure with real SMTP in production)
+      SMTP_HOST: smtp.gmail.com
+      SMTP_PORT: "587"
+      EMAIL_FROM: "NeuralTrade <noreply@neuraltrade.io>"
+      # SMTP_USER: ""
+      # SMTP_PASS: ""
+      # Telegram (optional)
+      # TELEGRAM_BOT_TOKEN: ""
+      # Discord (optional)
+      # DISCORD_WEBHOOK_URL: ""
+      # Rate Limiting
+      MAX_NOTIFICATIONS_PER_MINUTE: "30"
+      MAX_NOTIFICATIONS_PER_HOUR: "100"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     networks:
       - neuraltrade-net
     restart: unless-stopped

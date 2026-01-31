@@ -13,7 +13,7 @@
         "lint": "eslint src --ext .ts"
     },
     "dependencies": {
-        "@neuraltrade/shared-types": "workspace:*",
+        "@neuraltrade/shared-types": "*",
         "ccxt": "^4.2.0",
         "socket.io": "^4.7.0",
         "amqplib": "^0.10.4",

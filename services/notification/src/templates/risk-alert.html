@@ -1,0 +1,35 @@
+<h1>⚠️ Risk Alert</h1>
+
+<p>We've detected an important risk condition in your account that requires your attention.</p>
+
+<div class="trade-info" style="border-left: 4px solid #f87171;">
+    <div class="trade-row">
+        <span class="trade-label">Alert Type</span>
+        <span class="trade-value danger">{{account.alertType}}</span>
+    </div>
+    {{#if account.currentValue}}
+    <div class="trade-row">
+        <span class="trade-label">Current Value</span>
+        <span class="trade-value">{{account.currentValue}}</span>
+    </div>
+    {{/if}}
+    {{#if account.threshold}}
+    <div class="trade-row">
+        <span class="trade-label">Threshold</span>
+        <span class="trade-value">{{account.threshold}}</span>
+    </div>
+    {{/if}}
+</div>
+
+<p style="color: #f8fafc; font-weight: 500;">{{account.message}}</p>
+
+<p>Please review your positions and risk settings immediately.</p>
+
+<a href="{{dashboardUrl}}/risk" class="button" style="background: linear-gradient(135deg, #f87171 0%, #ef4444 100%);">
+    Review Risk Settings
+</a>
+
+<p style="font-size: 12px; color: #64748b; margin-top: 20px;">
+    This alert was triggered based on your configured risk parameters.
+    You can adjust these settings in your dashboard.
+</p>

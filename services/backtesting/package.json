@@ -13,7 +13,7 @@
         "lint": "eslint src --ext .ts"
     },
     "dependencies": {
-        "@neuraltrade/shared-types": "workspace:*",
+        "@neuraltrade/shared-types": "*",
         "@influxdata/influxdb-client": "^1.33.2",
         "zod": "^3.22.4",
         "pino": "^8.17.2",

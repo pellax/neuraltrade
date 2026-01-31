@@ -1,0 +1,59 @@
+<h1>Trade Executed Successfully! 🎯</h1>
+
+<p>Your trade has been executed on <span class="highlight">{{trade.exchange}}</span>.</p>
+
+<div class="trade-info">
+    <div class="trade-row">
+        <span class="trade-label">Symbol</span>
+        <span class="trade-value">{{trade.symbol}}</span>
+    </div>
+    <div class="trade-row">
+        <span class="trade-label">Side</span>
+        <span class="trade-value {{#if (eq trade.side 'buy')}}success{{else}}danger{{/if}}">
+            {{uppercase trade.side}}
+        </span>
+    </div>
+    <div class="trade-row">
+        <span class="trade-label">Amount</span>
+        <span class="trade-value">{{formatNumber trade.amount 4}}</span>
+    </div>
+    <div class="trade-row">
+        <span class="trade-label">Price</span>
+        <span class="trade-value">${{formatNumber trade.price 2}}</span>
+    </div>
+    <div class="trade-row">
+        <span class="trade-label">Total Value</span>
+        <span class="trade-value">${{formatNumber totalValue 2}}</span>
+    </div>
+    {{#if trade.strategy}}
+    <div class="trade-row">
+        <span class="trade-label">Strategy</span>
+        <span class="trade-value">{{trade.strategy}}</span>
+    </div>
+    {{/if}}
+    <div class="trade-row">
+        <span class="trade-label">Order ID</span>
+        <span class="trade-value" style="font-family: monospace; font-size: 12px;">{{trade.orderId}}</span>
+    </div>
+</div>
+
+{{#if trade.pnl}}
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-value {{#if (gte trade.pnl 0)}}success{{else}}danger{{/if}}">
+            {{#if (gte trade.pnl 0)}}+{{/if}}${{formatNumber trade.pnl 2}}
+        </div>
+        <div class="stat-label">P&L</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value {{#if (gte trade.pnlPercent 0)}}success{{else}}danger{{/if}}">
+            {{#if (gte trade.pnlPercent 0)}}+{{/if}}{{formatNumber trade.pnlPercent 2}}%
+        </div>
+        <div class="stat-label">Return</div>
+    </div>
+</div>
+{{/if}}
+
+<p>View the full details in your dashboard.</p>
+
+<a href="{{dashboardUrl}}/trades/{{trade.orderId}}" class="button">View Trade Details</a>

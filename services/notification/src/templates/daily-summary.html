@@ -1,0 +1,58 @@
+<h1>{{summary.period}} Trading Summary 📈</h1>
+
+<p>Here's your {{lowercase summary.period}} trading performance summary.</p>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-value">{{summary.totalTrades}}</div>
+        <div class="stat-label">Total Trades</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value {{#if (gte summary.winRate 50)}}success{{else}}danger{{/if}}">
+            {{formatNumber summary.winRate 1}}%
+        </div>
+        <div class="stat-label">Win Rate</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value {{#if (gte summary.pnl 0)}}success{{else}}danger{{/if}}">
+            {{#if (gte summary.pnl 0)}}+{{/if}}${{formatNumber summary.pnl 2}}
+        </div>
+        <div class="stat-label">Total P&L</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value {{#if (gte summary.pnlPercent 0)}}success{{else}}danger{{/if}}">
+            {{#if (gte summary.pnlPercent 0)}}+{{/if}}{{formatNumber summary.pnlPercent 2}}%
+        </div>
+        <div class="stat-label">Return</div>
+    </div>
+</div>
+
+{{#if summary.bestTrade}}
+<div class="trade-info">
+    <h3 style="color: #4ade80; margin-bottom: 15px;">🏆 Best Trade</h3>
+    <div class="trade-row">
+        <span class="trade-label">Symbol</span>
+        <span class="trade-value">{{summary.bestTrade.symbol}}</span>
+    </div>
+    <div class="trade-row">
+        <span class="trade-label">P&L</span>
+        <span class="trade-value success">+${{formatNumber summary.bestTrade.pnl 2}}</span>
+    </div>
+</div>
+{{/if}}
+
+{{#if summary.worstTrade}}
+<div class="trade-info">
+    <h3 style="color: #f87171; margin-bottom: 15px;">📉 Worst Trade</h3>
+    <div class="trade-row">
+        <span class="trade-label">Symbol</span>
+        <span class="trade-value">{{summary.worstTrade.symbol}}</span>
+    </div>
+    <div class="trade-row">
+        <span class="trade-label">P&L</span>
+        <span class="trade-value danger">${{formatNumber summary.worstTrade.pnl 2}}</span>
+    </div>
+</div>
+{{/if}}
+
+<a href="{{dashboardUrl}}/analytics" class="button">View Full Analytics</a>
