@@ -2,13 +2,20 @@
 
 /**
  * Login Page
- * Professional login form with 2FA support
+ * Professional login form with 2FA support - Connected to API
  */
 
 import { useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { useAuth } from '@/contexts/AuthContext';
+import { Mail, Lock, Shield, Loader2 } from 'lucide-react';
 
 export default function LoginPage() {
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const { login } = useAuth();
+
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [twoFactorCode, setTwoFactorCode] = useState('');
@@ -16,23 +23,26 @@ export default function LoginPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
 
+    const redirectTo = searchParams.get('redirect') || '/dashboard';
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
         setError('');
 
-        // Simulate API call
-        setTimeout(() => {
-            // For demo, show 2FA if email contains "2fa"
-            if (email.includes('2fa') && !showTwoFactor) {
-                setShowTwoFactor(true);
-                setIsLoading(false);
-                return;
-            }
+        const result = await login(email, password, showTwoFactor ? twoFactorCode : undefined);
 
-            // Simulate successful login
-            window.location.href = '/';
-        }, 1000);
+        if (result.success) {
+            // Set cookie for middleware
+            document.cookie = `accessToken=${localStorage.getItem('accessToken')}; path=/; max-age=${60 * 60 * 24 * 7}`;
+            router.push(redirectTo);
+        } else if (result.requires2fa) {
+            setShowTwoFactor(true);
+            setIsLoading(false);
+        } else {
+            setError(result.error || 'Login failed');
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -90,7 +100,7 @@ export default function LoginPage() {
                         NeuralTrade
                     </h1>
                     <p className="text-muted">
-                        Sign in to your account
+                        {showTwoFactor ? 'Enter your 2FA code' : 'Sign in to your account'}
                     </p>
                 </div>
 
@@ -129,24 +139,34 @@ export default function LoginPage() {
                                     }}>
                                         Email
                                     </label>
-                                    <input
-                                        type="email"
-                                        value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
-                                        placeholder="your@email.com"
-                                        required
-                                        style={{
-                                            width: '100%',
-                                            padding: 'var(--space-3)',
-                                            background: 'var(--bg-base)',
-                                            border: '1px solid var(--border-subtle)',
-                                            borderRadius: 'var(--radius-md)',
-                                            color: 'var(--text-primary)',
-                                            fontSize: '1rem',
-                                            outline: 'none',
-                                            transition: 'border-color var(--transition-base)',
-                                        }}
-                                    />
+                                    <div style={{ position: 'relative' }}>
+                                        <Mail size={18} style={{
+                                            position: 'absolute',
+                                            left: 12,
+                                            top: '50%',
+                                            transform: 'translateY(-50%)',
+                                            color: 'var(--text-muted)',
+                                        }} />
+                                        <input
+                                            type="email"
+                                            value={email}
+                                            onChange={(e) => setEmail(e.target.value)}
+                                            placeholder="your@email.com"
+                                            required
+                                            style={{
+                                                width: '100%',
+                                                padding: 'var(--space-3)',
+                                                paddingLeft: 42,
+                                                background: 'var(--bg-base)',
+                                                border: '1px solid var(--border-subtle)',
+                                                borderRadius: 'var(--radius-md)',
+                                                color: 'var(--text-primary)',
+                                                fontSize: '1rem',
+                                                outline: 'none',
+                                                transition: 'border-color var(--transition-base)',
+                                            }}
+                                        />
+                                    </div>
                                 </div>
 
                                 {/* Password */}
@@ -171,23 +191,33 @@ export default function LoginPage() {
                                             Forgot password?
                                         </Link>
                                     </div>
-                                    <input
-                                        type="password"
-                                        value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
-                                        placeholder="••••••••"
-                                        required
-                                        style={{
-                                            width: '100%',
-                                            padding: 'var(--space-3)',
-                                            background: 'var(--bg-base)',
-                                            border: '1px solid var(--border-subtle)',
-                                            borderRadius: 'var(--radius-md)',
-                                            color: 'var(--text-primary)',
-                                            fontSize: '1rem',
-                                            outline: 'none',
-                                        }}
-                                    />
+                                    <div style={{ position: 'relative' }}>
+                                        <Lock size={18} style={{
+                                            position: 'absolute',
+                                            left: 12,
+                                            top: '50%',
+                                            transform: 'translateY(-50%)',
+                                            color: 'var(--text-muted)',
+                                        }} />
+                                        <input
+                                            type="password"
+                                            value={password}
+                                            onChange={(e) => setPassword(e.target.value)}
+                                            placeholder="••••••••"
+                                            required
+                                            style={{
+                                                width: '100%',
+                                                padding: 'var(--space-3)',
+                                                paddingLeft: 42,
+                                                background: 'var(--bg-base)',
+                                                border: '1px solid var(--border-subtle)',
+                                                borderRadius: 'var(--radius-md)',
+                                                color: 'var(--text-primary)',
+                                                fontSize: '1rem',
+                                                outline: 'none',
+                                            }}
+                                        />
+                                    </div>
                                 </div>
                             </>
                         ) : (
@@ -198,10 +228,16 @@ export default function LoginPage() {
                                     marginBottom: 'var(--space-4)',
                                 }}>
                                     <div style={{
-                                        fontSize: '2rem',
-                                        marginBottom: 'var(--space-2)',
+                                        width: 60,
+                                        height: 60,
+                                        margin: '0 auto var(--space-3)',
+                                        background: 'var(--brand-gradient)',
+                                        borderRadius: 'var(--radius-lg)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
                                     }}>
-                                        🔐
+                                        <Shield size={28} color="white" />
                                     </div>
                                     <h3 style={{ marginBottom: 'var(--space-2)' }}>
                                         Two-Factor Authentication
@@ -216,6 +252,7 @@ export default function LoginPage() {
                                     onChange={(e) => setTwoFactorCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                                     placeholder="000000"
                                     maxLength={6}
+                                    autoFocus
                                     style={{
                                         width: '100%',
                                         padding: 'var(--space-4)',
@@ -230,6 +267,26 @@ export default function LoginPage() {
                                         outline: 'none',
                                     }}
                                 />
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setShowTwoFactor(false);
+                                        setTwoFactorCode('');
+                                    }}
+                                    style={{
+                                        display: 'block',
+                                        width: '100%',
+                                        marginTop: 'var(--space-3)',
+                                        padding: 'var(--space-2)',
+                                        background: 'transparent',
+                                        border: 'none',
+                                        color: 'var(--text-muted)',
+                                        fontSize: '0.875rem',
+                                        cursor: 'pointer',
+                                    }}
+                                >
+                                    ← Back to login
+                                </button>
                             </div>
                         )}
 
@@ -249,9 +306,20 @@ export default function LoginPage() {
                                 cursor: isLoading ? 'not-allowed' : 'pointer',
                                 transition: 'all var(--transition-base)',
                                 boxShadow: isLoading ? 'none' : '0 4px 20px rgba(6, 182, 212, 0.3)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: 'var(--space-2)',
                             }}
                         >
-                            {isLoading ? 'Signing in...' : (showTwoFactor ? 'Verify' : 'Sign In')}
+                            {isLoading ? (
+                                <>
+                                    <Loader2 size={18} className="animate-spin" style={{ animation: 'spin 1s linear infinite' }} />
+                                    Signing in...
+                                </>
+                            ) : (
+                                showTwoFactor ? 'Verify' : 'Sign In'
+                            )}
                         </button>
                     </form>
                 </div>
@@ -282,6 +350,12 @@ export default function LoginPage() {
                     © 2026 NeuralTrade. AI-Powered Trading Platform.
                 </p>
             </div>
+
+            <style jsx>{`
+                @keyframes spin {
+                    to { transform: rotate(360deg); }
+                }
+            `}</style>
         </div>
     );
 }

@@ -8,6 +8,7 @@
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import {
     LayoutDashboard,
     LineChart,
@@ -21,6 +22,7 @@ import {
     Zap,
     LogOut,
     CreditCard,
+    User,
 } from 'lucide-react';
 
 interface NavItem {
@@ -38,6 +40,7 @@ export default function DashboardLayout({
 }) {
     const pathname = usePathname();
     const [collapsed, setCollapsed] = useState(false);
+    const { user, logout, isLoading } = useAuth();
 
     const navItems: NavItem[] = [
         { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} />, shortcut: '1', href: '/dashboard' },
@@ -82,11 +85,38 @@ export default function DashboardLayout({
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, []);
 
-    const handleLogout = () => {
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
-        window.location.href = '/auth/login';
+    const handleLogout = async () => {
+        // Also clear cookie
+        document.cookie = 'accessToken=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
+        await logout();
     };
+
+    // Show loading state
+    if (isLoading) {
+        return (
+            <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                height: '100vh',
+                background: 'var(--bg-base)',
+            }}>
+                <div style={{
+                    width: 40,
+                    height: 40,
+                    border: '3px solid var(--bg-elevated)',
+                    borderTopColor: 'var(--brand-cyan)',
+                    borderRadius: '50%',
+                    animation: 'spin 1s linear infinite',
+                }} />
+                <style jsx>{`
+                    @keyframes spin {
+                        to { transform: rotate(360deg); }
+                    }
+                `}</style>
+            </div>
+        );
+    }
 
     return (
         <div style={{ display: 'flex', minHeight: '100vh' }}>

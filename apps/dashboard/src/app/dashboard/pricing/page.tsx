@@ -8,14 +8,15 @@
  */
 
 import { useState } from 'react';
-import { Check, Zap, Shield, Crown, Building } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Check, Zap, Shield, Crown, Building, ArrowRight, Sparkles } from 'lucide-react';
 import { PRICING_PLANS, PlanId, isStripeTestMode, TEST_CARDS } from '@/lib/stripe';
 import { StripeTestModeBanner } from '@/components/StripeProvider';
 
 export default function PricingPage() {
+    const router = useRouter();
     const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'yearly'>('monthly');
-    const [selectedPlan, setSelectedPlan] = useState<PlanId | null>(null);
-    const [isLoading, setIsLoading] = useState(false);
+    const [hoveredPlan, setHoveredPlan] = useState<PlanId | null>(null);
 
     const yearlyDiscount = 0.2; // 20% discount
 
@@ -27,36 +28,20 @@ export default function PricingPage() {
         return basePrice;
     };
 
-    const handleSubscribe = async (planId: PlanId) => {
-        if (planId === 'FREE' || planId === 'ENTERPRISE') {
-            // Free plan doesn't need payment, Enterprise needs contact
+    const handleSubscribe = (planId: PlanId) => {
+        if (planId === 'FREE') {
+            // Already on free plan
             return;
         }
 
-        setSelectedPlan(planId);
-        setIsLoading(true);
-
-        try {
-            // Create checkout session via API
-            const response = await fetch('/api/stripe/create-checkout', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    priceId: PRICING_PLANS[planId].priceId,
-                    billingPeriod,
-                }),
-            });
-
-            const { url } = await response.json();
-
-            if (url) {
-                window.location.href = url;
-            }
-        } catch (error) {
-            console.error('Error creating checkout:', error);
-        } finally {
-            setIsLoading(false);
+        if (planId === 'ENTERPRISE') {
+            // Open contact form or email
+            window.location.href = 'mailto:enterprise@neuraltrade.ai?subject=Enterprise Plan Inquiry';
+            return;
         }
+
+        // Navigate to checkout page with plan
+        router.push(`/dashboard/checkout?plan=${planId.toLowerCase()}`);
     };
 
     const planIcons: Record<PlanId, React.ReactNode> = {
@@ -64,6 +49,54 @@ export default function PricingPage() {
         STARTER: <Shield size={24} />,
         PRO: <Crown size={24} />,
         ENTERPRISE: <Building size={24} />,
+    };
+
+    const getButtonStyle = (id: PlanId, isHovered: boolean) => {
+        const baseStyle = {
+            width: '100%',
+            padding: 'var(--space-3) var(--space-4)',
+            borderRadius: 'var(--radius-md)',
+            fontWeight: 600,
+            cursor: id === 'FREE' ? 'default' : 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 'var(--space-2)',
+            transition: 'all 0.3s ease',
+            fontSize: '0.95rem',
+        };
+
+        if (id === 'FREE') {
+            return {
+                ...baseStyle,
+                background: 'var(--bg-elevated)',
+                border: '1px solid var(--border-subtle)',
+                color: 'var(--text-muted)',
+            };
+        }
+
+        if (id === 'ENTERPRISE') {
+            return {
+                ...baseStyle,
+                background: isHovered ? 'var(--bg-hover)' : 'transparent',
+                border: '2px solid var(--border-subtle)',
+                color: 'var(--text-primary)',
+            };
+        }
+
+        // Starter and Pro - gradient buttons
+        return {
+            ...baseStyle,
+            background: isHovered
+                ? 'linear-gradient(135deg, #06b6d4 0%, #8b5cf6 50%, #d946ef 100%)'
+                : 'linear-gradient(135deg, #0891b2 0%, #7c3aed 50%, #c026d3 100%)',
+            border: 'none',
+            color: 'white',
+            boxShadow: isHovered
+                ? '0 8px 30px rgba(6, 182, 212, 0.4), 0 0 20px rgba(139, 92, 246, 0.3)'
+                : '0 4px 15px rgba(6, 182, 212, 0.25)',
+            transform: isHovered ? 'translateY(-2px)' : 'none',
+        };
     };
 
     return (
@@ -232,35 +265,22 @@ export default function PricingPage() {
                             {/* CTA Button */}
                             <button
                                 onClick={() => handleSubscribe(id)}
-                                disabled={isLoading && selectedPlan === id}
-                                style={{
-                                    width: '100%',
-                                    padding: 'var(--space-3)',
-                                    background: id === 'FREE'
-                                        ? 'var(--bg-elevated)'
-                                        : id === 'ENTERPRISE'
-                                            ? 'transparent'
-                                            : 'var(--brand-gradient)',
-                                    border: id === 'ENTERPRISE'
-                                        ? '1px solid var(--border-subtle)'
-                                        : 'none',
-                                    borderRadius: 'var(--radius-md)',
-                                    color: id === 'FREE' || id === 'ENTERPRISE'
-                                        ? 'var(--text-primary)'
-                                        : 'white',
-                                    fontWeight: 600,
-                                    cursor: 'pointer',
-                                    opacity: isLoading && selectedPlan === id ? 0.7 : 1,
-                                }}
+                                onMouseEnter={() => setHoveredPlan(id)}
+                                onMouseLeave={() => setHoveredPlan(null)}
+                                disabled={id === 'FREE'}
+                                style={getButtonStyle(id, hoveredPlan === id) as React.CSSProperties}
                             >
-                                {isLoading && selectedPlan === id
-                                    ? 'Processing...'
-                                    : id === 'FREE'
-                                        ? 'Current Plan'
-                                        : id === 'ENTERPRISE'
-                                            ? 'Contact Sales'
-                                            : 'Subscribe Now'
-                                }
+                                {id === 'FREE' ? (
+                                    'Current Plan'
+                                ) : id === 'ENTERPRISE' ? (
+                                    'Contact Sales'
+                                ) : (
+                                    <>
+                                        <Sparkles size={18} />
+                                        Subscribe Now
+                                        <ArrowRight size={18} />
+                                    </>
+                                )}
                             </button>
                         </div>
                     ))}
